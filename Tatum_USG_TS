@@ -84,9 +84,10 @@ z1.animation <- z1+
   transition_time(Year)+
   labs(subtitle = "Year:{frame_time}")
 
-animate(z1.animation, height = 380, width = 700,
+animate(z1.animation, height = 470, width = 800,
         duration = 10,end_pause = 10)
 
+anim_save("Tatum_graph.gif")
 
 
 

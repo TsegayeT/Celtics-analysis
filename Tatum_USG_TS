@@ -1,0 +1,117 @@
+library(tidyverse)
+library(extrafont)
+library(rvest)
+library(scales)
+library(ggplot2)
+
+############################################################################################################
+################### Set a function to grab all Tatums game_log by years ####################################
+
+get_data <- function(season){
+  
+url <- paste0("https://www.basketball-reference.com/players/t/tatumja01/gamelog-advanced/", season, "/")
+
+df <- url %>% 
+    read_html() %>% 
+    html_table() %>% 
+    as.data.frame()
+  
+df <- df %>% select(Date, G, MP, TS., USG., AST., TRB., STL.,BLK.,TOV.)
+  
+df <- df %>% filter(!is.na(as.numeric(TS.)))
+                      
+df$G <- as.numeric(df$G)
+df$TS. <- as.numeric(df$TS.)
+df$USG. <- as.numeric(df$USG.)
+df$AST. <- as.numeric(df$AST.)
+df$TRB. <- as.numeric(df$TRB.)
+df$STL. <- as.numeric(df$STL.)
+df$BLK. <- as.numeric(df$BLK.)
+df$TOV. <- as.numeric(df$TOV.)
+df$MP <- parse_number(df$MP)
+  
+  return(df)
+}
+
+df <- map_df(seq(2018,2022,1), get_data) 
+
+
+
+##########################################################################################################
+#############################################Filter and manipulate cols ##################################
+
+
+#fix the seasons bcuz a season has multiple years
+df$Year[1:79] <- "2017"
+df$Year[80:157] <- "2018"
+df$Year[158:223] <- "2019"
+df$Year[224:287] <- "2020"
+df$Year[288:321] <- "2021"
+
+
+df <- df %>% filter(MP >=10 & USG.>=5)
+df$USG. <- df$USG./100
+
+df$Year <- substr(df$Date, 1,4)
+df <- transform(df, Year = as.numeric(Year))
+
+sapply(df, class)
+
+
+############################################################################################################
+##################################### plot and save the graph ##############################################
+z1 <- df %>% ggplot(aes(x = USG., y = TS.))+
+  geom_point(color= "blue",shape =21, size = 4, alpha = 0.75)+
+  geom_smooth(method = "loess", se = TRUE, color = "black",
+              linetype = "dashed")+
+  scale_color_brewer(palette = "Set2")+
+  scale_x_continuous(labels = percent, breaks = seq(0.095, 0.435,0.03),
+                     limits = c(.095, .425))+
+  scale_y_continuous(labels = percent, breaks = seq(.2,1.5, .1))+
+  ggthemes::theme_economist()+
+  labs(title = "Jayson Tatum Usage and TS(2017-2021)",
+       x= "Usage",
+       y = "True Shooting Percentage")+
+  theme(plot.title = element_text(color = "blue",hjust = 0.5),
+        axis.title.y = element_text(color= "blue",margin = margin(r=7)),
+        axis.title.x = element_text(color = "blue" ,margin = margin(t=10)))
+z1  
+
+###############################################################################################################
+######################################### Animate by years ####################################################
+library(gganimate)
+z1.animation <- z1+
+  transition_time(Year)+
+  labs(subtitle = "Year:{frame_time}")
+
+animate(z1.animation, height = 380, width = 700,
+        duration = 10,end_pause = 10)
+
+
+
+
+
+
+
+
+
+
+
+
+###############################################################################################################################################################
+#############################################################################################################################################################
+##############################################################################################################################################################
+################################################# Messing around to check my work #############################################################################
+df %>% filter(Year == 2021) %>% 
+  ggplot(aes(USG., TS.))+ 
+  geom_point() +
+  geom_smooth(method = "loess")
+
+
+
+df <- url %>% 
+  read_html() %>% 
+  html_table() %>% 
+  as.data.frame() %>% 
+  select(G, MP, TS., USG., AST., TRB., STL.,BLK.,TOV.) %>% 
+  filter(!is.na(as.numeric(TS.)))

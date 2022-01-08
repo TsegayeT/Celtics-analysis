@@ -1,0 +1,127 @@
+library(tidyverse)
+library(extrafont)
+library(rvest)
+library(scales)
+library(ggplot2) 
+
+
+##############################################################################################################
+###################   Function to get Jaylen stats by year ###############################
+get_jaylen_df <- function(season){
+  url <- paste0("https://www.basketball-reference.com/players/b/brownja02/gamelog-advanced/",season,"/")
+  
+  jaylen_df <- url %>% 
+    read_html() %>% 
+    html_table() %>% 
+    as.data.frame()
+  
+  jaylen_df <- jaylen_df %>% select(Date, G, MP, TS., USG., TRB., AST., TOV., STL., BLK.)
+  
+  jaylen_df <- jaylen_df %>% filter(!is.na(as.numeric(TS.)))
+  
+  
+  jaylen_df$G <- as.numeric(jaylen_df$G)
+  jaylen_df$MP <- parse_number(jaylen_df$MP)
+  jaylen_df$TS. <- as.numeric(jaylen_df$TS.)
+  jaylen_df$USG. <- as.numeric(jaylen_df$USG.)
+  jaylen_df$TRB. <- as.numeric(jaylen_df$TRB.)
+  jaylen_df$AST. <- as.numeric(jaylen_df$AST.)
+  jaylen_df$TOV. <- as.numeric(jaylen_df$TOV.)
+  jaylen_df$STL. <- as.numeric(jaylen_df$STL.)
+  jaylen_df$BLK. <- as.numeric(jaylen_df$BLK.)
+  
+  jaylen_df <- jaylen_df %>% filter(MP>=10 & USG.>=5)
+  
+  return(jaylen_df)
+}
+
+jaylen_df<- map_df(seq(2017,2022,1), get_jaylen_df)
+
+
+jaylen_df$USG. <- jaylen_df$USG./100
+
+
+######################################################################################
+###################### Create Year col to match season ############################
+jaylen_df$Year[322:346] <- c("2021")
+jaylen_df$Year[264:321] <- c("2020")
+jaylen_df$Year[207:263] <- c("2019")
+jaylen_df$Year[133:206] <- c("2018")
+jaylen_df$Year[63:132] <- c("2017")
+jaylen_df$Year[1:62] <- c("2016")
+
+
+#################### turn Year col into number  #############
+jaylen_df <- transform(jaylen_df, Year = as.numeric(Year))
+
+
+sapply(jaylen_df, class)
+
+######### plot TS and USG ###########
+z2 <- jaylen_df %>% 
+  ggplot(aes(USG., TS.))+
+  geom_point(size =4, color = "blue", alpha= 0.35)+
+  geom_smooth(method = "loess", se=TRUE, color="black", linetype ="dashed")+
+  labs(title = "Jaylen TS and USG (2016-2021)",
+       x = "Usage(%)",
+       y = "True Shooting(%)")+
+  ggthemes::theme_economist()+
+  #scale_x_continuous(labels = percent,
+   #                  breaks = seq(0.05,0.5,0.05), limits = c(0.05,0.5))+
+  #scale_y_continuous(labels = percent,
+   #                  breaks = seq(0,1.1,0.1), limits = c(0,1.1))+
+  theme(plot.title = element_text(color = "blue",hjust = 0.5),
+        axis.title.x = element_text(color = "blue",
+                                    margin = margin(t=7)),
+        axis.title.y = element_text(color = "blue", 
+                                    margin = margin(r=7)))+
+  facet_grid(~Year, scales = "free", space="free")
+
+
+z2  
+
+
+
+
+
+###############################################################################################
+################### Tatums graph ##################################################
+z1 <- df %>% ggplot(aes(x = USG., y = TS.))+
+  geom_point(color= "blue",size = 4, alpha = 0.35)+
+  geom_smooth(method = "loess", se = TRUE, color = "black",
+              linetype = "dashed")+
+  #scale_x_continuous(labels = percent, breaks = seq(0.05, 0.45,0.05),
+   #                  limits = c(0.05, 0.45))+
+  #scale_y_continuous(labels = percent, breaks = seq(0,1.2, .1),
+   #                  limits = c(0,1.2))+
+  ggthemes::theme_economist()+
+  labs(title = "Tatum Usage and TS(2017-2021)",
+       x= "Usage",
+       y = "True Shooting Percentage")+
+  theme(plot.title = element_text(color = "blue",hjust = 0.5),
+        axis.title.y = element_text(color= "blue",
+                                    margin = margin(r=7)),
+        axis.title.x = element_text(color = "blue",
+                                    margin = margin(t=10)))+
+  facet_grid(~Year, scales = "free", space = "free")
+
+z1  
+
+
+
+library(grid)
+library(gridExtra)
+
+grid.arrange(z1, z2, ncol=1)
+
+
+
+library(gganimate)
+
+
+z2.animation <- z2 +
+  transition_time(Year)+
+  labs(subtitle = "Year:{frame_time}")
+
+animate(z2.animation, height =400, width =800, 
+        duration =14, end_pause = 10)

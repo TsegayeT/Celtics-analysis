@@ -1,0 +1,207 @@
+install.packages("tidyverse")
+install.packages("ggplot2")
+install.packages("janitor")
+install.packages("hablar")
+install.packages("gt")
+install.packages("matrixStats")
+install.packages("gridExtra")
+install.packages("ggthemes")
+install.packages("ggridges")
+install.packages("ggbeeswarm")
+install.packages("cowplot")
+library(cowplot)
+library(gridExtra)
+library(ggridges)
+library(ggbeeswarm)
+library(ggplot2)
+library(tidyverse)
+library(rvest)
+library(lubridate)
+library(janitor)
+library(hablar)
+library(dplyr)
+library(gt)
+library(matrixStats)
+library(ggthemes)
+library(ggpubr)
+install.packages("ggpubr")
+
+
+
+#function to get mutliple years of Tatums gamelog
+Tatum_url <- function(y){
+  url <- paste0("https://www.basketball-reference.com/players/t/tatumja01/gamelog/",y)
+  tbl <- 
+    read_html(url, as.data.frame=T, stringAsFactors =TRUE) %>% 
+    html_nodes("tbody") %>% 
+    .[[1]] %>% 
+    html_table(fill = T) -> url
+  
+  return(tbl)
+}
+#put what years you want for Tatums gamelog
+Tatum_stats <- map_df(seq(2018,2022,1), Tatum_url)
+    
+
+colnames(Tatum_stats) <- c("Rk","G", "Date", "Age", "Tm", "A","Opp", "B","GS","MP","FG","FGA",
+                           "FG%","3P","3PA","3P%","FT","FTA","FT%","ORB","DRB","TRB","AST",
+                           "STL","BLK","TOV","PF","PTS","GmSc","+/-")
+
+#make cols into numeric which also turns non numeric into NAs
+Tatum_stats <- Tatum_stats %>% 
+  mutate_at(c(11:30), as.numeric)
+
+sapply(Tatum, class)
+
+#remove rows with NAs
+Tatum_stats <- Tatum_stats[!is.na(Tatum_stats$"PTS"),]
+
+Tatum_stats$Date[1:80] <- c("2018")
+Tatum_stats$Date[81:159] <- c("2019")
+Tatum_stats$Date[160:225] <- c("2020")
+Tatum_stats$Date[226:289] <- c("2021")
+Tatum_stats$Date[290:363] <- c("2022")
+
+
+
+Tatum_stats %>% ggplot(aes(x = TRB, fill= Date))+
+  geom_density(alpha=0.8)
+
+#Count of Unique Points by season
+PTS_Distribution <-  Tatum_stats %>% 
+  dplyr::group_by(Date)%>% 
+  dplyr::select(Date, PTS) %>% 
+  dplyr::count(PTS)
+
+
+T1 <- Tatum_stats %>%  
+  group_by(Date) %>% 
+  mutate(mean = mean(PTS) , std= sd(PTS))
+
+
+
+
+
+Tatum_adv_url <- function(y){
+  url <- paste0("https://www.basketball-reference.com/players/t/tatumja01/gamelog-advanced/",y,"/")
+  tbl <- 
+    read_html(url, as.data.frame=T, stringAsFactors =TRUE) %>% 
+    html_nodes("tbody") %>% 
+    .[[1]] %>% 
+    html_table(fill = T) -> url
+  
+  return(tbl)
+}
+#put what years you want for Tatums gamelog
+Tatum_adv_stats <- map_df(seq(2018,2022,1), Tatum_adv_url)
+
+colnames(Tatum_adv_stats) <- c("Rk","G", "Date", "Age", "Tm", "A","Opp", "B","GS","MP","TS","eFG",
+                           "ORB%%","DRB%","TRB%","AST%","STL%","BLK%","TOV%","USG%","ORtg","DRtg","GmSc",
+                           "BPM")
+
+
+Tatum_adv_stats <- Tatum_adv_stats %>% 
+  mutate_at(c(11:24), as.numeric)
+
+Tatum_adv_stats <- Tatum_adv_stats[!is.na(Tatum_adv_stats$"ORtg"),]
+
+
+Tatum_adv_stats$Date[1:80] <- c("2018")
+Tatum_adv_stats$Date[81:159] <- c("2019")
+Tatum_adv_stats$Date[160:225] <- c("2020")
+Tatum_adv_stats$Date[226:289] <- c("2021")
+Tatum_adv_stats$Date[290:363] <- c("2022")
+
+
+
+
+
+T_TS <- Tatum_adv_stats %>% 
+  ggplot(aes(x=TS, fill=Date))+
+  geom_density(alpha=0.77)+
+  scale_x_continuous(breaks = seq(0,1.2,.2))+
+  ggthemes::theme_fivethirtyeight()+
+  labs(title = "TS")+
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+T_ASTP <- Tatum_adv_stats %>% 
+  ggplot(aes(x=`AST%`, fill=Date))+
+  geom_density(alpha=0.77)+
+  scale_x_continuous(breaks = seq(0,80,10))+
+  ggthemes::theme_fivethirtyeight()+
+  labs(title = "Asst Percentage")+
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+T_USG <- Tatum_adv_stats %>% 
+  ggplot(aes(x=`USG%`, fill=Date))+
+  geom_density(alpha=0.77)+
+  scale_x_continuous(breaks = seq(0,45,5))+
+  ggthemes::theme_fivethirtyeight()+
+  labs(title = "USG")+
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+T_eFG <- Tatum_adv_stats %>% 
+  ggplot(aes(x=`eFG`, fill=Date))+
+  geom_density(alpha=0.77)+
+  scale_x_continuous(breaks = seq(0,1.2,0.1))+
+  ggthemes::theme_fivethirtyeight()+
+  labs(title = "eFG")+
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+T_PTS <- Tatum_stats %>% 
+  ggplot(aes(x=PTS, fill=Date))+
+  geom_density(alpha=0.77)+
+  scale_x_continuous(breaks = seq(0,60,4))+
+  ggthemes::theme_fivethirtyeight()+
+  labs(title = "Points")+
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+T_AST <- Tatum_stats %>% 
+  ggplot(aes(x=AST, fill=Date))+
+  geom_density(alpha=0.77)+
+  scale_x_continuous(breaks = seq(0,12,1))+
+  ggthemes::theme_fivethirtyeight()+
+  labs(title = "Assists")+
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+T_TRB <- Tatum_stats %>% 
+  ggplot(aes(x=TRB, fill=Date))+
+  geom_density(alpha=0.77)+
+  scale_x_continuous(breaks = seq(0,16,1))+
+  ggthemes::theme_fivethirtyeight()+
+  labs(title = "Total Rebs")+
+  theme(legend.position = "bottom",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())
+
+leg <- get_legend(T_TRB)
+
+T_TRB <- T_TRB+
+  theme(legend.position = "none")
+
+plot <- ggarrange(T_PTS, T_TS, T_AST,T_eFG, T_USG,T_ASTP,T_TRB, leg)+
+  ggthemes::theme_fivethirtyeight()
+
+annotate_figure(plot, top=text_grob("Tatum Distrubutions Over the Years", color="seagreen",
+                                    size = 14, face = "bold"),
+                                    bottom = text_grob("Source:bballreference; plot:@_ThomasT",
+                                                      hjust = 1,x=1, color = "seagreen", face = "bold"))
